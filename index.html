@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Курбан-Байрам</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { color: #d32f2f; text-align: center; margin-bottom: 20px; }
+        p { color: #555; font-size: 14px; }
+        textarea { width: 100%; height: 120px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; padding: 12px; box-sizing: border-box; font-size: 15px; resize: none; }
+        button { width: 100%; padding: 14px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #1b5e20; }
+        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; background: #fafafa; margin-top: 5px; border-radius: 4px; }
+        .copy-btn { width: auto; padding: 6px 12px; font-size: 13px; background: #1976d2; margin-left: 10px; }
+        #receiver-view { text-align: center; display: none; }
+        .name-display { font-size: 28px; font-weight: bold; color: #d32f2f; margin: 20px 0; padding: 20px; background: #fff5f5; border-radius: 10px; border: 2px dashed #d32f2f; }
+        .instructions { background: #e8f5e9; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #2e7d32; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Жеребий пикник 🥰🤩😍</h2>
+    
+    <!-- Экран создания игры -->
+    <div id="setup-view">
+        <div class="instructions">
+            <strong>Как это работает:</strong> Введите имена, нажмите кнопку и скопируйте уникальную ссылку для каждого друга.
+        </div>
+        <textarea id="namesInput" placeholder="Введите имена через Enter:&#10;Аня&#10;Борис&#10;Сумайя"></textarea>
+        <button onclick="generateSanta()">Перемешать и создать ссылки</button>
+        <div id="resultsList" style="margin-top: 20px;"></div>
+    </div>
+
+    <!-- Экран для того, кто открыл ссылку -->
+    <div id="receiver-view">
+        <p>Хей! Ты участвуешь в Тайном Пикнике.<br>Твой подопечный:</p>
+        <div class="name-display" id="targetName"></div>
+        <p>Никому не говори, кто тебе попался! 🤫</p>
+        <br>
+        <button onclick="window.location.href = window.location.pathname" style="background: #757575;">Создать новую игру</button>
+    </div>
+</div>
+
+<script>
+    // --- ФУНКЦИИ ДЛЯ КОРРЕКТНОЙ РАБОТЫ С РУССКИМ ЯЗЫКОМ ---
+    function utf8_to_b64(str) {
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+            return String.fromCharCode('0x' + p1);
+        }));
+    }
+
+    function b64_to_utf8(str) {
+        return decodeURIComponent(atob(str).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+    }
+
+    // --- ПРОВЕРКА ССЫЛКИ ПРИ ЗАГРУЗКЕ ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const giftForEncoded = urlParams.get('giftFor');
+
+    if (giftForEncoded) {
+        document.getElementById('setup-view').style.display = 'none';
+        document.getElementById('receiver-view').style.display = 'block';
+        try {
+            document.getElementById('targetName').innerText = b64_to_utf8(giftForEncoded);
+        } catch (e) {
+            document.getElementById('targetName').innerText = "Ошибка: ссылка повреждена";
+        }
+    }
+
+    // --- ЛОГИКА ТАЙНОГО САНТЫ ---
+    function generateSanta() {
+        const input = document.getElementById('namesInput').value.trim();
+        const names = input.split('\n').map(n => n.trim()).filter(n => n !== "");
+
+        if (names.length < 3) {
+            alert("Для игры нужно минимум 3 человека!");
+            return;
+        }
+
+        let shuffled = [...names];
+        
+        // Перемешиваем, пока кто-то не выпадет сам себе
+        let attempts = 0;
+        while (attempts < 100) {
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            if (names.every((name, i) => name !== shuffled[i])) break;
+            attempts++;
+        }
+
+        const resultsList = document.getElementById('resultsList');
+        resultsList.innerHTML = "<h3>Скопируйте ссылки:</h3>";
+
+        names.forEach((name, i) => {
+            const encodedName = utf8_to_b64(shuffled[i]);
+            const link = window.location.origin + window.location.pathname + "?giftFor=" + encodedName;
+
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            div.innerHTML = `
+                <span>👤 <strong>${name}</strong></span>
+                <button class="copy-btn" onclick="copyToClipboard('${link}')">Копировать ссылку</button>
+            `;
+            resultsList.appendChild(div);
+        });
+    }
+
+    function copyToClipboard(text) {
+        const tempInput = document.createElement("input");
+        document.body.appendChild(tempInput);
+        tempInput.value = text;
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        alert("Ссылка скопирована! Отправьте её участнику в личные сообщения.");
+    }
+</script>
+
+</body>
+</html>
